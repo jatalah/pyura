@@ -10,7 +10,6 @@ theme_set(theme_javier())
 # read and prepare data ---------
 quad <- read_excel('data/pyura.xlsx')
 
-
 factors <- 
   quad %>% 
   transmute(image = `Frame image name`,file = `CPC filename`) %>% 
