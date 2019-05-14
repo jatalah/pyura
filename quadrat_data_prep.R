@@ -2,8 +2,13 @@ library(tidyverse)
 library(readxl)
 library(vegan)
 library(ggord)
+library(ggpubr)
 
-quad <- read_excel('pyura.xlsx')
+source('theme_javier.R')
+theme_set(theme_javier())
+
+# read and prepare data ---------
+quad <- read_excel('data/pyura.xlsx')
 
 
 factors <- 
@@ -15,20 +20,34 @@ factors <-
          site = str_sub(file,1,1),
          density = str_sub(file,3,3),
          treat =  str_sub(file,5,5),
-         rep =  str_sub(file,-1))
+         rep =  str_sub(file,-1),
+         density = fct_recode(density, Control = "O", High = "H", Low = "L"),
+         density = fct_relevel(density, "Control", "Low", "High"))
 
 
-cover <- 
-  read_excel('pyura.xlsx', sheet = "pyura_%cover", skip = 1) %>% 
+cover_data <- 
+  read_excel('data/pyura.xlsx', sheet = "pyura_%cover", skip = 1) %>% 
   select(`Photo Name`, `Cellana_ornata (Cel)`:`Epopella plicata (Epo)`) %>% 
   select_if(~sum(!is.na(.)) > 0) %>% 
   select_if(~ !is.numeric(.) || sum(.) != 0) %>% 
-  rename(image = `Photo Name` ) %>% 
-  left_join(factors)
+  rename(image = `Photo Name` ) 
 
-glimpse(cover)
+names(cover_data) <- 
+  str_replace(names(cover_data), "(?s) .*", "") %>%
+  str_replace(., "_", " ")
+  
+write_csv(cover_data, 'data/cover_data.csv')
 
-log_cover <- log10(cover[,c(2:22)]+1)
+
+##Merge cover data with factors --------------
+cover <- 
+  left_join(cover_data, factors) %>% 
+  rename(Sand = sand,
+         `Bare space` = `bare `,
+         Ulva = Ulva.) %>% 
+  select(-`Pyura doppel`)
+  
+log_cover <- log10(cover[,c(2:21)]+1)
 
 
 mds <- metaMDS(log_cover, distance = 'bray')
@@ -46,69 +65,61 @@ mds_plot <-
   repel = T,
   text = .01,
   vec_ext = 1
-)
+) + 
+  theme_javier() +
+  annotate(geom = 'text', x = 1.3, y = .7, label = paste("Stress =",round(mds$stress, 2)), size = 5)
+  
 mds_plot
 
 # PERMANOVA-----------
-permanova <- adonis(log10(cover[,c(2:22)]+1)~site*density,data = cover,method = 'bray',permutations = 9999)
+permanova <- adonis(log10(cover[,c(2:21)]+1)~site*density,data = cover,method = 'bray',permutations = 9999)
 permanova
 
 # SIMPER------------
-simp <- simper(log10(cover[,c(2:22)]+1), cover$density, permutations = 999)
+simp <- simper(log10(cover[,c(2:21)]+1), cover$density, permutations = 999)
 # simp <- simper(fauna_dat[,-c(1:4)], fauna_dat$Treatment, permutations = 999)
 summary(simp, digits = 2, ordered = T)
 
 # diversity indices----
 indices <- 
-  cover[,c(2:22)] %>% 
+  cover[,c(2:21)] %>% 
   round(.) %>% 
-  transmute(N = rowSums(.),
+  transmute(N = rowSums(.) - (`Bare space` + Sand + Biofilm),
             H = diversity(.),
             S = specnumber(.),
             J = H/log(S),
             ES = rarefy(., min(N))) %>% 
   bind_cols(factors)
 
-boxplots <- 
+indices_long <- 
   indices %>% 
-  gather(index, value, c("S", "J", "H")) %>% 
-  mutate(index = fct_relevel(index, c("S", "J"))) %>% 
-  ggplot(., aes(x = density, y = value, fill = site)) +
+  gather(index, value, c("S", "N", "J", "H")) %>% 
+  mutate(index = fct_relevel(index, c("S","N", "J")))
+
+
+
+p1 <- 
+  ggplot(filter(indices_long, site=='K'), aes(x = density, y = value)) +
   geom_boxplot(alpha = .8) +
-  facet_wrap(~index, scales = 'free')
-boxplots
+  facet_wrap(~index, scales = 'free',ncol = 4) + labs(x = '',  title = 'B. Koutau') 
+p2 <- 
+  ggplot(filter(indices_long, site=='S'), aes(x = density, y = value)) +
+  geom_boxplot(alpha = .8) +
+  facet_wrap(~index, scales = 'free', ncol = 4)+ labs(x = '', title = 'A. Shipwreck') 
 
-
-
-indices %>% 
-  gather(index, value, c("S", "J", "H")) %>% 
-  mutate(index = fct_relevel(index, c("S", "J"))) %>% 
-ggplot(., aes(density, value, fill = site)) +
-  stat_summary(
-    fun.y = mean,
-    geom = "bar",
-    position = position_dodge(width = .9),
-    color = 1
-  ) +
-  stat_summary(
-    fun.data = mean_se,
-    position = position_dodge(width = .9),
-    geom = "errorbar",
-    width = 0.2
-  ) +
-  theme_bw() +
-  facet_wrap(.~index, scales = 'free')
+ggarrange(p2,p1, nrow = 2)
 
 
 # anova indices---------------
 indices_dat <-
   indices %>%
-  mutate(N = log(N +1)) %>% 
-  gather(index, value, c("H", "S", "J")) %>%
+  mutate(N = log(N),
+         S = log(S)) %>% 
+  gather(index, value, c("N","H", "S", "J")) %>%
   group_by(index) %>%
   nest() %>%  
   mutate(
-    lms = map(.x = data, ~ lm(value ~ site*density, data = .x)),
+    lms = map(.x = data, ~ aov(value ~ site*density, data = .x)),
     anova_tab = map(lms, anova),
     anova_table = map(anova_tab, broom::tidy),
     residuals = map(lms, broom::augment)
