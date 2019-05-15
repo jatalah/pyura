@@ -1,13 +1,15 @@
+# load libraries
 library(tidyverse)
 library(readxl)
 library(broom)
+
+# 01 read and preparae data----- 
 
 ci <- read_excel('data/Length and CI.xlsx')
 dotchart(ci$CI)
 
 # remove one outlier
-head(arrange(ci, CI))
-# sample 32 CI<1
+head(arrange(ci, CI))# sample 32 CI<1
 
 ci <- 
   filter(ci,CI>1) %>% 
@@ -19,7 +21,7 @@ ci <-
   
 dotchart(ci$CI)
 
-# summary stats condion index ----------
+# 02 Summary stats condion index ----------
 ci %>% 
   drop_na(CI) %>% 
   group_by(Site,	Density,	Rep, Type) %>% 
@@ -34,65 +36,14 @@ ci %>%
             sd = sd(CI),
             se = sd/sqrt(n))
 
-
-# Boxplot---------
-ggplot(ci, aes(x = Density, y = CI)) +
-  geom_boxplot() +
-  facet_grid( Type ~ Site) +
-  theme_javier()
-
+# 03 Boxplot of mussel size-----
 ggplot(ci, aes(x = Density, y = Length)) +
   geom_boxplot() +
   facet_grid( Type ~ Site) +
   theme_bw()
 
 
-# useless dynamite plot---
-# ggplot(ci, aes(x = Density, y = CI)) +  
-#   stat_summary(fun.y = mean, geom = "bar", fill = 'gray80', color = 1, alpha =0) +  
-#   stat_summary(fun.data =  "mean_cl_boot", geom = "errorbar", width = 0.2) +
-#   facet_grid( Type ~ Site) +
-#   theme_bw()
-
-ggplot(ci, aes(x = Density, y = CI)) +  
-  stat_summary(fun.data = "mean_cl_boot", colour = 1, size = 1 ) +
-  facet_grid( Type ~ Site) +
-  theme_bw()
-
-und_ci <- filter(ci,Type=="U")
-tr_ci <- filter(ci,Type!="U")
-
-ggplot(und_ci, aes(x = Density, y = CI)) +  
-  stat_summary(fun.data = "mean_cl_boot", colour = 1, size = 1 ) +
-  facet_wrap( ~ Site) +
-  theme_javier() +
-  ylab('Condition index')
-
-
-ci_plot_und <- 
-  ggplot(und_ci, aes(x = Density, y = CI)) +  
-  geom_boxplot() +
-  facet_wrap( ~ Site) +
-  theme_javier() +
-  labs(y = 'Condition index', x = '')
-
-
-ci_plot_tr <- 
-  ggplot(tr_ci, aes(x = Density, y = CI)) +  
-  geom_boxplot() +
-  theme_javier() +
-  labs(y = 'Condition index', x = '')
-
-
-ggsave(ggarrange(ci_plot_tr, ci_plot_und, ncol = 2, widths = c(1,2),labels = "AUTO"), 
-       filename = 'figures/ci_plots.tiff',
-       device = 'tiff',
-       compression = 'lzw',
-       width = 8,
-       height = 3,
-       dpi = 600)
-
-# CI plot option 2-------
+# 04 Boxplot of condition index ---------
 ci_plot2 <- 
   ci %>% 
   drop_na(CI) %>% 
@@ -102,6 +53,8 @@ ggplot( aes(x = Density, y = CI)) +
   facet_wrap( ~ paste(Site, Type, sep =" ")) +
   theme_javier() +
   labs(y = 'Condition index', x = '')
+
+print(ci_plot2)
 
 ggsave(ci_plot2, 
        filename = 'figures/ci_plots2.tiff',
@@ -113,16 +66,17 @@ ggsave(ci_plot2,
 
 # anova condition index ---------
 m1 <- aov(sqrt(CI)~Site*Density, und_ci)
-tidy(m1)
-tidy(TukeyHSD(m1))
+
+kable(tidy(m1))
+kable(tidy(TukeyHSD(m1)))
 
 m2 <- aov(sqrt(CI)~Density, tr_ci)
-tidy(m2)
-tidy(TukeyHSD(m2))
+kable(tidy(m2))
+kable(tidy(TukeyHSD(m2)))
 
 m3 <- aov(sqrt(Length)~Site*Density, ci)
-anova(m3)
-TukeyHSD(m3)
+tidy(m3)
+kable(tidy(TukeyHSD(m3)))
 
 # Initial mussel size data---------------
 size <- 
@@ -144,6 +98,8 @@ size_freq_dist <-
   labs(x = 'Mussel size (mm)', y = 'Number of individuals') + 
   theme_javier() +
   theme(legend.position = c(.9,.7))
+
+print(size_freq_dist)
 
 ggsave(size_freq_dist, 
        filename = 'figures/size_freq_dist.tiff',
