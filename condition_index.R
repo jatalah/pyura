@@ -1,5 +1,6 @@
 library(tidyverse)
 library(readxl)
+library(broom)
 
 ci <- read_excel('data/Length and CI.xlsx')
 dotchart(ci$CI)
@@ -73,35 +74,51 @@ ci_plot_und <-
   geom_boxplot() +
   facet_wrap( ~ Site) +
   theme_javier() +
-  labs(y = 'Condition index', x = '', title = "B. Undisturbed mussels")
+  labs(y = 'Condition index', x = '')
 
 
 ci_plot_tr <- 
   ggplot(tr_ci, aes(x = Density, y = CI)) +  
   geom_boxplot() +
   theme_javier() +
-  labs(y = 'Condition index', x = '', title = "A. Transplanted mussels")
-
-
-ggarrange(ci_plot_und, ci_plot_tr)
-
-ci %>% 
-  drop_na(CI) %>% 
-ggplot( aes(x = Density, y = CI)) +  
-  geom_boxplot() +
-  facet_wrap( ~ paste(Site,Type, sep =" ")) +
-  theme_javier() +
   labs(y = 'Condition index', x = '')
 
 
+ggsave(ggarrange(ci_plot_tr, ci_plot_und, ncol = 2, widths = c(1,2),labels = "AUTO"), 
+       filename = 'figures/ci_plots.tiff',
+       device = 'tiff',
+       compression = 'lzw',
+       width = 8,
+       height = 3,
+       dpi = 600)
+
+# CI plot option 2-------
+ci_plot2 <- 
+  ci %>% 
+  drop_na(CI) %>% 
+  mutate(Type = fct_recode(Type, Trasplanted = "E", Undisturbed = "U")) %>% 
+ggplot( aes(x = Density, y = CI)) +  
+  geom_boxplot() +
+  facet_wrap( ~ paste(Site, Type, sep =" ")) +
+  theme_javier() +
+  labs(y = 'Condition index', x = '')
+
+ggsave(ci_plot2, 
+       filename = 'figures/ci_plots2.tiff',
+       device = 'tiff',
+       compression = 'lzw',
+       width = 7,
+       height = 2.5,
+       dpi = 600)
+
 # anova condition index ---------
 m1 <- aov(sqrt(CI)~Site*Density, und_ci)
-anova(m1)
-TukeyHSD(m1)
+tidy(m1)
+tidy(TukeyHSD(m1))
 
 m2 <- aov(sqrt(CI)~Density, tr_ci)
-anova(m2)
-TukeyHSD(m2)
+tidy(m2)
+tidy(TukeyHSD(m2))
 
 m3 <- aov(sqrt(Length)~Site*Density, ci)
 anova(m3)
@@ -112,11 +129,7 @@ size <-
   read_csv('data/UW-Caliper 0111_Pyura_4_17.CSV') %>% 
   filter(mm>0) 
 
-
 summary(size$mm)
-ggplot(size, aes(x = mm,  stat(count),fill = Site)) +
-  geom_density(alpha = .3) +
-  labs(x = 'Mussel size (mm)', y = 'Number of individuals')
 
 size %>% 
   group_by(Site) %>% 
@@ -125,4 +138,18 @@ size %>%
             sd = sd(mm),
             se = sd/sqrt(n))
 
+size_freq_dist <- 
+  ggplot(size, aes(x = mm,  stat(count),fill = Site)) +
+  geom_density(alpha = .3) +
+  labs(x = 'Mussel size (mm)', y = 'Number of individuals') + 
+  theme_javier() +
+  theme(legend.position = c(.9,.7))
+
+ggsave(size_freq_dist, 
+       filename = 'figures/size_freq_dist.tiff',
+       device = 'tiff',
+       compression = 'lzw',
+       width = 4,
+       height = 2.5,
+       dpi = 600)
 

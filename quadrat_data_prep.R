@@ -38,7 +38,7 @@ names(cover_data) <-
 write_csv(cover_data, 'data/cover_data.csv')
 
 
-##Merge cover data with factors --------------
+##Merge cover data with factors
 cover <- 
   left_join(cover_data, factors) %>% 
   rename(Sand = sand,
@@ -49,35 +49,66 @@ cover <-
 log_cover <- log10(cover[,c(2:21)]+1)
 
 
+# nMDS plot---------------
 mds <- metaMDS(log_cover, distance = 'bray')
 
 
 mds_plot <- 
   ggord(
-  mds,
-  grp_in = cover$density,
-  poly = F,
-  alpha = 1,
-  ellipse = F,
-  # arrow = .3,
-  arrow = 0,
-  repel = T,
-  text = .01,
-  vec_ext = 1
-) + 
+    mds,
+    grp_in = paste(cover$site,cover$density, sep = " - "),
+    poly = F,
+    ellipse = F,
+    arrow = 0,
+    repel = T,
+    text = .01,
+    vec_ext = 1
+  ) + 
   theme_javier() +
-  annotate(geom = 'text', x = 1.3, y = .7, label = paste("Stress =",round(mds$stress, 2)), size = 5)
-  
-mds_plot
+  annotate(geom = 'text', x = 1.3, y = .7, label = paste("Stress =",round(mds$stress, 2)), size = 5) +
+  scale_shape_manual(values = c(1, 2, 5, 21, 24, 23))+
+  scale_color_manual(values = c(1, 2, 3, 1, 2, 3)) +
+  scale_fill_manual(values = c(1, 2, 3, 1, 2, 3))
+
+
+ggsave(mds_plot, 
+       filename = 'figures/mds_plot.tiff',
+       device = 'tiff',
+       compression = 'lzw',
+       width = 8,
+       height = 5,
+       dpi = 600)
 
 # PERMANOVA-----------
 permanova <- adonis(log10(cover[,c(2:21)]+1)~site*density,data = cover,method = 'bray',permutations = 9999)
 permanova
 
+permanova_table <- 
+  data.frame(permanova$aov.tab) %>% 
+  rownames_to_column() %>% 
+  dplyr::rename(Terms = rowname,
+                df = Df,
+                SS = SumsOfSqs,
+                MS = MeanSqs,
+                "Pseudo-F" = F.Model,
+                P = Pr..F.)%>%
+  filter(Terms != 'Total') %>% 
+  mutate_at(vars(SS:R2), ~round(.,digits = 2)) %>% 
+  mutate(P = signif(P,3)) %>% 
+  write_csv(., 'outputs/permanova_table.csv', na = "")
+
 # SIMPER------------
 simp <- simper(log10(cover[,c(2:21)]+1), cover$density, permutations = 999)
 # simp <- simper(fauna_dat[,-c(1:4)], fauna_dat$Treatment, permutations = 999)
 summary(simp, digits = 2, ordered = T)
+
+
+%>%
+  rename(P = p) %>% 
+  mutate_at(vars(average:cusum), ~ round(., digits = 3)) %>%
+  mutate(P = round(P, 3)) %>%
+  write_csv(., 'tables/SIMPER_tables.csv', na = "")
+
 
 # diversity indices----
 indices <- 
@@ -96,17 +127,26 @@ indices_long <-
   mutate(index = fct_relevel(index, c("S","N", "J")))
 
 
-
+# diversity plots--------------
 p1 <- 
   ggplot(filter(indices_long, site=='K'), aes(x = density, y = value)) +
   geom_boxplot(alpha = .8) +
-  facet_wrap(~index, scales = 'free',ncol = 4) + labs(x = '',  title = 'B. Koutau') 
+  facet_wrap(~index, scales = 'free',ncol = 4) + labs(x = '') +
+  theme_javier()
 p2 <- 
   ggplot(filter(indices_long, site=='S'), aes(x = density, y = value)) +
   geom_boxplot(alpha = .8) +
-  facet_wrap(~index, scales = 'free', ncol = 4)+ labs(x = '', title = 'A. Shipwreck') 
+  facet_wrap(~index, scales = 'free', ncol = 4)+ labs(x = '') +
+  theme_javier()
 
-ggarrange(p2,p1, nrow = 2)
+
+ggsave(ggarrange(p2,p1, nrow = 2,labels = c("A. Kautou", "B. Shipwreck"), vjust = c(1,.8), hjust = c(-.1,-.1)), 
+       filename = 'figures/diversity_plot.tiff',
+       device = 'tiff',
+       compression = 'lzw',
+       width = 8,
+       height = 5,
+       dpi = 600)
 
 
 # anova indices---------------
