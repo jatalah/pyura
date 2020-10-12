@@ -1,0 +1,10 @@
+key,term,sumsq,meansq,NumDF,DenDF,statistic,p.value
+Pyura,Date,160,78,2,14,1.1,0.36
+Pyura,Treatment,3000,1500,2,5.8,21,0.0022
+Pyura,Date x Treatment,320,80,4,14,1.1,0.38
+Perna,Date,2100,1100,2,20,9.5,0.0013
+Perna,Treatment,1500,760,2,12,6.7,0.011
+Perna,Date x Treatment,390,97,4,20,0.86,0.5
+Other,Date,1400,680,2,20,3.8,0.04
+Other,Treatment,580,290,2,12,1.6,0.24
+Other,Date x Treatment,1200,310,4,20,1.7,0.18
