@@ -1,4 +1,4 @@
-<h1>Impacts of an introduced ascidian on rocky shore communities</h1>
+<h1>Impacts of putative pest on rocky shore communities</h1>
 
 Javier Atalah<br>
 Cawthron Institute, Private Bag 2, Nelson 7010, New Zealand<br>
