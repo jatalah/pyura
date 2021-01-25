@@ -1,6 +1,6 @@
 <h1>Impacts of putative pest on rocky shore communities</h1>
 
-Javier Atalah, Lauren Fletcher and Barrie M. Forrest<br>
+Javier Atalah, Lauren M. Fletcher and Barrie M. Forrest<br>
 Cawthron Institute, Private Bag 2, Nelson 7010, New Zealand<br>
 javier.atalah@cawthron.org.nz<br>
 
